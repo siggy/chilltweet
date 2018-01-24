@@ -53,12 +53,19 @@ func main() {
 	}
 	log.Infof("Got %+v follows", len(c.Ids))
 
-	userTweets := make(map[string][]anaconda.Tweet)
 	v := url.Values{
 		"count":           []string{"200"},
 		"exclude_replies": []string{"true"},
 	}
+
+	// screenName => []tweets
+	userTweets := make(map[string][]anaconda.Tweet)
+
+	// this keeps track of the highest velocity user's 3200th newest tweet.
+	// all other user timelines are truncated beyond this tweet, to ensure we
+	// measure the same time range across users.
 	highestLastID := int64(0)
+
 	for _, userID := range c.Ids {
 		v.Del("max_id")
 		v.Set("user_id", strconv.FormatInt(userID, 10))
@@ -86,6 +93,7 @@ func main() {
 			userTweets[screenName] = append(userTweets[screenName], tweets...)
 			log.Debugf("%+v: %+v tweets | max_id: %+v", screenName, len(userTweets[screenName]), v.Get("max_id"))
 			if lastID < highestLastID {
+				// we're prior to the oldest tweet of the highest velocity user, bail
 				break
 			}
 		}
@@ -108,6 +116,7 @@ func main() {
 	counts := userCounts{}
 	for user, tweets := range userTweets {
 		count := 0
+		// this assumes tweets came in ordered newest => oldest
 		for _, tweet := range tweets {
 			if tweet.Id < highestLastID {
 				break
