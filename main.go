@@ -15,6 +15,12 @@ var CONSUMER_SECRET = os.Getenv("TWITTER_CONSUMER_SECRET")
 var ACCESS_TOKEN = os.Getenv("TWITTER_OAUTH_TOKEN")
 var ACCESS_TOKEN_SECRET = os.Getenv("TWITTER_OAUTH_TOKEN_SECRET")
 
+type logFormatter struct{}
+
+func (f *logFormatter) Format(entry *log.Entry) ([]byte, error) {
+	return []byte(entry.Message + "\n"), nil
+}
+
 type userCount struct {
 	user   string
 	tweets int
@@ -27,6 +33,8 @@ func (u userCounts) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
 func (u userCounts) Less(i, j int) bool { return u[i].tweets > u[j].tweets }
 
 func main() {
+	log.SetFormatter(new(logFormatter))
+
 	if len(os.Args) != 2 {
 		log.Errorf("usage: chilltweet screen_name")
 		return
@@ -102,7 +110,7 @@ func main() {
 			highestLastID = lastID
 		}
 
-		log.Infof("%+v: %+v tweets | lastID: %+v | highestLastID: %+v",
+		log.Infof("%-15v: %+4v | lastID: %+18v | highestLastID: %+18v",
 			screenName,
 			len(userTweets[screenName]),
 			lastID,
@@ -113,6 +121,7 @@ func main() {
 	log.Infof("got %+v users' tweets", len(userTweets))
 
 	// count tweets per user
+	totalTweets := 0
 	counts := userCounts{}
 	for user, tweets := range userTweets {
 		count := 0
@@ -124,9 +133,13 @@ func main() {
 			count++
 		}
 		counts = append(counts, userCount{user: user, tweets: count})
+		totalTweets += count
 	}
 
 	sort.Sort(counts)
 
-	log.Infof("COUNTS %+v", counts)
+	for _, userCount := range counts {
+		percent := 100.0 * float64(userCount.tweets) / float64(totalTweets)
+		log.Infof("%5.2f%% %+4v: %+v", percent, userCount.tweets, userCount.user)
+	}
 }
