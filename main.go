@@ -33,6 +33,8 @@ func (u userCounts) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
 func (u userCounts) Less(i, j int) bool { return u[i].tweets > u[j].tweets }
 
 func main() {
+	// log.SetLevel(log.DebugLevel)
+
 	log.SetFormatter(new(logFormatter))
 
 	if len(os.Args) != 2 {
@@ -74,7 +76,7 @@ func main() {
 	// measure the same time range across users.
 	highestLastID := int64(0)
 
-	for _, userID := range c.Ids {
+	for i, userID := range c.Ids {
 		v.Del("max_id")
 		v.Set("user_id", strconv.FormatInt(userID, 10))
 		var screenName string
@@ -99,9 +101,9 @@ func main() {
 			)
 
 			userTweets[screenName] = append(userTweets[screenName], tweets...)
-			log.Debugf("%+v: %+v tweets | max_id: %+v", screenName, len(userTweets[screenName]), v.Get("max_id"))
+			log.Debugf("  %-15v: %+4v tweets | max_id: %+19v", screenName, len(userTweets[screenName]), v.Get("max_id"))
 			if lastID < highestLastID {
-				// we're prior to the oldest tweet of the highest velocity user, bail
+				// we're earlier than the oldest tweet of the highest velocity user, bail
 				break
 			}
 		}
@@ -110,7 +112,8 @@ func main() {
 			highestLastID = lastID
 		}
 
-		log.Infof("%-15v: %+4v | lastID: %+18v | highestLastID: %+18v",
+		log.Infof("%4d / %4d | %-15v: %+4v | lastID: %+19v | highestLastID: %+19v",
+			i+1, len(c.Ids),
 			screenName,
 			len(userTweets[screenName]),
 			lastID,

@@ -126,6 +126,15 @@ func Test_TwitterApi_NewTwitterApi(t *testing.T) {
 	}
 }
 
+// Test that creating a TwitterApi client creates a client with non-empty OAuth credentials
+func Test_TwitterApi_NewTwitterApiWithCredentials(t *testing.T) {
+	apiLocal := anaconda.NewTwitterApiWithCredentials(ACCESS_TOKEN, ACCESS_TOKEN_SECRET, CONSUMER_KEY, CONSUMER_SECRET)
+
+	if apiLocal.Credentials == nil {
+		t.Fatalf("Twitter Api client has empty (nil) credentials")
+	}
+}
+
 // Test that the GetSearch function actually works and returns non-empty results
 func Test_TwitterApi_GetSearch(t *testing.T) {
 	search_result, err := api.GetSearch("golang", nil)
@@ -204,22 +213,22 @@ func Test_GetTweet(t *testing.T) {
 
 	// Check the entities
 	expectedEntities := anaconda.Entities{Hashtags: []struct {
-		Indices []int
-		Text    string
+		Indices []int  `json:"indices"`
+		Text    string `json:"text"`
 	}{struct {
-		Indices []int
-		Text    string
+		Indices []int  `json:"indices"`
+		Text    string `json:"text"`
 	}{Indices: []int{86, 93}, Text: "golang"}}, Urls: []struct {
-		Indices      []int
-		Url          string
-		Display_url  string
-		Expanded_url string
+		Indices      []int  `json:"indices"`
+		Url          string `json:"url"`
+		Display_url  string `json:"display_url"`
+		Expanded_url string `json:"expanded_url"`
 	}{}, User_mentions: []struct {
-		Name        string
-		Indices     []int
-		Screen_name string
-		Id          int64
-		Id_str      string
+		Name        string `json:"name"`
+		Indices     []int  `json:"indices"`
+		Screen_name string `json:"screen_name"`
+		Id          int64  `json:"id"`
+		Id_str      string `json:"id_str"`
 	}{}, Media: []anaconda.EntityMedia{anaconda.EntityMedia{
 		Id:              303777106628841472,
 		Id_str:          "303777106628841472",
@@ -272,7 +281,7 @@ func Test_GetQuotedTweet(t *testing.T) {
 	}
 
 	if tweet.QuotedStatus.Text != quotedText {
-		t.Fatalf("Expected quoted status text %#v, received $#v", quotedText, tweet.QuotedStatus.Text)
+		t.Fatalf("Expected quoted status text %#v, received %#v", quotedText, tweet.QuotedStatus.Text)
 	}
 }
 
@@ -388,6 +397,76 @@ func Test_TwitterApi_TwitterErrorDoesNotExist(t *testing.T) {
 	}
 }
 
+func Test_DMScreenName(t *testing.T) {
+	to, err := api.GetSelf(url.Values{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = api.PostDMToScreenName("Test the anaconda lib", to.ScreenName)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+// This assumes that the current user has at least one list, and the first list includes the current user as a member.
+func Test_RemoveUserFromList(t *testing.T) {
+	user, err := api.GetSelf(url.Values{})
+	if err != nil {
+		t.Fatalf("GetSelf returned error: %s", err.Error())
+	}
+
+	lists, err := api.GetListsOwnedBy(user.Id, nil)
+	if err != nil {
+		t.Fatalf("GetListsOwnedBy returned error: %s", err.Error())
+	}
+
+	if len(lists) == 0 {
+		t.Fatalf("GetListsOwnedBy returned no lists")
+	}
+
+	list, err := api.RemoveUserFromList(user.ScreenName, lists[0].Id, nil)
+	if err != nil {
+		t.Fatalf("RemoveUserFromList returned error: %s", err.Error())
+	}
+
+	// If all attributes are equal to the zero value for that type,
+	// then the original value was not valid
+	if reflect.DeepEqual(list, anaconda.List{}) {
+		t.Fatalf("Received %#v", list)
+	}
+}
+
+// This assumes that the current user has at least one list, and the first list includes the current user as a member.
+func Test_RemoveMultipleUsersFromList(t *testing.T) {
+	user, err := api.GetSelf(url.Values{})
+	if err != nil {
+		t.Fatalf("GetSelf returned error: %s", err.Error())
+	}
+
+	lists, err := api.GetListsOwnedBy(user.Id, nil)
+	if err != nil {
+		t.Fatalf("GetListsOwnedBy returned error: %s", err.Error())
+	}
+
+	if len(lists) == 0 {
+		t.Fatalf("GetListsOwnedBy returned no lists")
+	}
+
+	users := []string{user.ScreenName}
+
+	list, err := api.RemoveMultipleUsersFromList(users, lists[0].Id, nil)
+	if err != nil {
+		t.Fatalf("RemoveMultipleUsersFromList returned error: %s", err.Error())
+	}
+
+	// If all attributes are equal to the zero value for that type,
+	// then the original value was not valid
+	if reflect.DeepEqual(list, anaconda.List{}) {
+		t.Fatalf("Received %#v", list)
+	}
+}
+
 // Test that the client can be used to throttle to an arbitrary duration
 func Test_TwitterApi_Throttling(t *testing.T) {
 	const MIN_DELAY = 15 * time.Second
@@ -413,16 +492,4 @@ func Test_TwitterApi_Throttling(t *testing.T) {
 
 	// Reset the delay to its previous value
 	api.SetDelay(oldDelay)
-}
-
-func Test_DMScreenName(t *testing.T) {
-	to, err := api.GetSelf(url.Values{})
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = api.PostDMToScreenName("Test the anaconda lib", to.ScreenName)
-	if err != nil {
-		t.Error(err)
-		return
-	}
 }

@@ -17,13 +17,13 @@ func (a TwitterApi) GetDirectMessagesSent(v url.Values) (messages []DirectMessag
 	return messages, (<-response_ch).err
 }
 
-func (a TwitterApi) GetDirectMessagesShow(v url.Values) (messages []DirectMessage, err error) {
+func (a TwitterApi) GetDirectMessagesShow(v url.Values) (message DirectMessage, err error) {
 	response_ch := make(chan response)
-	a.queryQueue <- query{a.baseUrl + "/direct_messages/show.json", v, &messages, _GET, response_ch}
-	return messages, (<-response_ch).err
+	a.queryQueue <- query{a.baseUrl + "/direct_messages/show.json", v, &message, _GET, response_ch}
+	return message, (<-response_ch).err
 }
 
-// https://dev.twitter.com/docs/api/1.1/post/direct_messages/new
+// https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-message
 func (a TwitterApi) PostDMToScreenName(text, screenName string) (message DirectMessage, err error) {
 	v := url.Values{}
 	v.Set("screen_name", screenName)
@@ -31,7 +31,7 @@ func (a TwitterApi) PostDMToScreenName(text, screenName string) (message DirectM
 	return a.postDirectMessagesImpl(v)
 }
 
-// https://dev.twitter.com/docs/api/1.1/post/direct_messages/new
+// https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/new-message
 func (a TwitterApi) PostDMToUserId(text string, userId int64) (message DirectMessage, err error) {
 	v := url.Values{}
 	v.Set("user_id", strconv.FormatInt(userId, 10))
@@ -40,7 +40,7 @@ func (a TwitterApi) PostDMToUserId(text string, userId int64) (message DirectMes
 }
 
 // DeleteDirectMessage will destroy (delete) the direct message with the specified ID.
-// https://dev.twitter.com/rest/reference/post/direct_messages/destroy
+// https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/delete-message
 func (a TwitterApi) DeleteDirectMessage(id int64, includeEntities bool) (message DirectMessage, err error) {
 	v := url.Values{}
 	v.Set("id", strconv.FormatInt(id, 10))
@@ -54,4 +54,14 @@ func (a TwitterApi) postDirectMessagesImpl(v url.Values) (message DirectMessage,
 	response_ch := make(chan response)
 	a.queryQueue <- query{a.baseUrl + "/direct_messages/new.json", v, &message, _POST, response_ch}
 	return message, (<-response_ch).err
+}
+
+// IndicateTyping will create a typing indicator
+// https://developer.twitter.com/en/docs/direct-messages/typing-indicator-and-read-receipts/api-reference/new-typing-indicator
+func (a TwitterApi) IndicateTyping(id int64) (err error) {
+	v := url.Values{}
+	v.Set("recipient_id", strconv.FormatInt(id, 10))
+	response_ch := make(chan response)
+	a.queryQueue <- query{a.baseUrl + "/direct_messages/indicate_typing.json", v, nil, _POST, response_ch}
+	return (<-response_ch).err
 }
