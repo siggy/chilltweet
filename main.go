@@ -73,8 +73,6 @@ func main() {
 	// this keeps track of the highest velocity user's 3200th newest tweet.
 	// all other user timelines are truncated beyond this tweet, to ensure we
 	// measure the same time range across users.
-	// highestLastID := int64(0)
-	// highestLastIDUser := ""
 	highestLastTweet := twitter.Tweet{}
 	excludeReplies := true
 	includeRetweets := true
@@ -95,10 +93,17 @@ func main() {
 			)
 			if err != nil {
 				apiError := twitter.APIError{}
-				if errors.As(err, &apiError) && apiError.Errors[0].Code == 88 {
-					log.Warnf("got APIError[%s], sleeping for 15 minutes from %s ...", apiError, time.Now())
-					time.Sleep(15 * time.Minute)
-					continue
+				if errors.As(err, &apiError) {
+					switch apiError.Errors[0].Code {
+					case 88:
+						log.Warnf("got APIError[%s] %+v, sleeping for 15 minutes from %s ...", apiError, resp, time.Now())
+						time.Sleep(15 * time.Minute)
+						continue
+					case 131:
+						log.Warnf("got APIError[%s]: %+v, sleeping for 10 seconds ...", apiError, resp)
+						time.Sleep(10 * time.Second)
+						continue
+					}
 				}
 
 				log.Errorf("UserTimeline failed with: %s", err)
@@ -124,11 +129,9 @@ func main() {
 			}
 		}
 
-		// only increase highestLastID if the user has more than 200 tweets total
-		if maxID > highestLastTweet.ID && len(userTweets[screenName]) > 200 {
+		// only increase highestLastID if the user has more than 1000 tweets total
+		if maxID > highestLastTweet.ID && len(userTweets[screenName]) > 1000 {
 			highestLastTweet = userTweets[screenName][len(userTweets[screenName])-1]
-			// highestLastID = maxID
-			// highestLastIDUser = screenName
 		}
 
 		log.Infof("%4d / %4d | %-15v: %+4v | maxID: %+19v | highestLastTweet[%s]: https://twitter.com/%s/status/%+19v",
