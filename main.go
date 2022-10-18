@@ -98,10 +98,11 @@ func main() {
 				if errors.As(err, &apiError) && apiError.Errors[0].Code == 88 {
 					log.Warnf("got APIError[%s], sleeping for 15 minutes from %s ...", apiError, time.Now())
 					time.Sleep(15 * time.Minute)
-				} else {
-					log.Errorf("UserTimeline failed with: %s", err)
-					return
+					continue
 				}
+
+				log.Errorf("UserTimeline failed with: %s", err)
+				return
 			}
 			if resp.StatusCode != http.StatusOK {
 				log.Errorf("failed to get UserTimeline: %+v", resp)
